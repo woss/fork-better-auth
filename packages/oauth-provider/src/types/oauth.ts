@@ -217,9 +217,9 @@ export interface OIDCMetadata extends AuthServerMetadata {
 	 * pairwise: the subject identifier is unique to the client
 	 * public: the subject identifier is unique to the server
 	 *
-	 * only `public` is supported.
+	 * @see https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
 	 */
-	subject_types_supported: "public"[];
+	subject_types_supported: ("public" | "pairwise")[];
 	/**
 	 * Supported ID token signing algorithms.
 	 *
@@ -308,6 +308,12 @@ export interface OAuthClient {
 	 * requesting offline_access scope, regardless of this setting.
 	 */
 	require_pkce?: boolean;
+	/**
+	 * Subject identifier type for this client.
+	 *
+	 * @see https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
+	 */
+	subject_type?: "public" | "pairwise";
 	//---- All other metadata ----//
 	reference_id?: string;
 	[key: string]: unknown;
