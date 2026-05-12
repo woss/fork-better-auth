@@ -1262,9 +1262,17 @@ export const createInternalAdapter = (
 			if (secondaryStorage && !options.verification?.storeInDatabase) {
 				const parseCachedVerification = (raw: unknown) => {
 					if (!raw) return null;
-					return safeJSONParse<Verification>(
-						typeof raw === "string" ? raw : String(raw),
-					);
+					// Secondary storage wrappers can return either a JSON string
+					// (the default codec) or a pre-parsed object (some Redis client
+					// integrations do this). Accept both shapes; only call
+					// safeJSONParse when we actually have a string.
+					if (typeof raw === "string") {
+						return safeJSONParse<Verification>(raw);
+					}
+					if (typeof raw === "object") {
+						return raw as Verification;
+					}
+					return null;
 				};
 				const consumeCacheKey = async (key: string) => {
 					if (secondaryStorage.getAndDelete) {
@@ -1315,23 +1323,23 @@ export const createInternalAdapter = (
 
 						// FIXME(consume-identifier-atomic): add an adapter primitive that
 						// deletes all rows for an identifier and returns the latest row in
-						// one operation. Until then, claim the latest row as the race gate
+						// one operation. Until then, consume the latest row as the race gate
 						// and invalidate stale rows inside the same transaction/local lock.
 						const hookWhere = [{ field: "id", value: latest.id }];
 						return consumeOneWithHooks<Verification>(
 							"verification",
 							hookWhere,
 							async () => {
-								const claimed = await txAdapter.claimOne<Verification>({
+								const consumed = await txAdapter.consumeOne<Verification>({
 									model: "verification",
 									where: hookWhere,
 								});
-								if (!claimed) return null;
+								if (!consumed) return null;
 								await txAdapter.deleteMany({
 									model: "verification",
 									where,
 								});
-								return claimed;
+								return consumed;
 							},
 							latest,
 						);
